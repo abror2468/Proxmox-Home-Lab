@@ -216,17 +216,3 @@ Server README =
 ➡ Configuration  
 ➡ Maintenance  
 
-No duplication. No fluff.
-
-Just real system documentation.
-
----
-
-If you want, next we can do:
-
-✅ Proxmox README  
-✅ Node-RED README  
-✅ Grafana README  
-
-Each one will be very specific and non-repetitive like this.
-
