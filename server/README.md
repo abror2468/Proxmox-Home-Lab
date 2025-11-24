@@ -1,33 +1,31 @@
 # Server Infrastructure Documentation
 
-This document covers the **technical setup and operation** of the Proxmox server used in my home lab.
-
-This is not a high-level project overview — it is the system-level documentation for actually running and maintaining the server.
+This document covers the **technical setup and operation** of my Proxmox-based home lab server.
+All services run directly on an Ubuntu Server VM — not in Docker containers.
 
 ---
 
-## 1. Host Machine Info
+## 1. Host Machine (Physical Server)
 
-**Physical Server:**
-- Dell OptiPlex 7050 Mini
-- Intel i5-6500T
-- 8GB DDR4 RAM
-- 500GB HDD
+**Model:** Dell OptiPlex 7050 Mini  
+**CPU:** Intel i5-6500T  
+**RAM:** 8GB DDR4  
+**Storage:** 500GB HDD  
+**Form Factor:** Mini PC  
 
-**Power Usage:**  
-~18W idle / ~35W under load
+This device functions as a 24/7 home lab server.
 
 ---
 
 ## 2. Proxmox Host Configuration
 
-**Installed OS:** Proxmox VE 8.x  
+**Hypervisor:** Proxmox VE  
 **Host Name:** `proxmox-lab`
 
-### Network Settings
-- Bridge: `vmbr0`
-- Type: Linux Bridge
-- Host IP: `192.168.X.50` *(masked for security)*
+### Network Configuration
+- Bridge Interface: `vmbr0`
+- Virtual Networking Type: Linux Bridge
+- IP Address: `192.168.X.50` (masked for security)
 - Gateway: `192.168.X.1`
 
 ### Network Topology
@@ -45,67 +43,107 @@ Copy code
 
 ---
 
-## 3. VM Configuration
+## 3. Virtual Machine Configuration
 
-### VM: Ubuntu Server
+### Primary VM: Ubuntu Server
 
-- OS: Ubuntu Server 22.04 LTS
-- vCPU: 2 cores
-- RAM: 4GB
-- Disk: 40GB
-- Network: Bridged via vmbr0
+| Component | Value |
+|--------|------|
+| OS | Ubuntu Server 22.04 LTS |
+| CPU | 2 cores |
+| RAM | 4GB |
+| Storage | 40GB |
+| Network | Bridged via vmbr0 |
 
-### Inside the VM:
-This VM runs Docker and all containers.
+This VM hosts all services directly on the OS.
 
 ---
 
-## 4. Docker Setup
+## 4. Services Running on Ubuntu VM
 
-Docker is used to manage services.
+All services are installed directly on Ubuntu (not Docker):
 
-Installed using:
+| Service | Purpose | Port |
+|--------|--------|------|
+| Mosquitto MQTT | IoT messaging broker | 1883 |
+| Node-RED | IoT logic and data processing | 1880 |
+| InfluxDB | Time-series data storage | 8086 |
+| Grafana | Visualization dashboard | 3000 |
 
+Services are managed using `systemctl`.
+
+---
+
+## 5. System Service Control
+
+Common commands used:
+
+Start a service:
 ```bash
-sudo apt install docker docker-compose -y
-Docker Compose is used for container orchestration.
+sudo systemctl start mosquitto
+Check service status:
 
-Main containers:
+bash
+Copy code
+sudo systemctl status node-red
+Enable on boot:
 
-Mosquitto MQTT
-
-Node-RED
-
-InfluxDB
-
-Grafana
-
-5. Container Service Ports
-Service	Port
-Mosquitto MQTT	1883
-Node-RED	1880
-InfluxDB	8086
-Grafana	3000
-
-These ports are only accessible internally on the lab network.
-
+bash
+Copy code
+sudo systemctl enable grafana-server
 6. Boot Process
-Server boot order:
-Proxmox boots
+Boot Sequence:
+Physical server powers on
+
+Proxmox starts
 
 Ubuntu VM auto-starts
 
-Docker service initializes
+Services start sequentially via systemd
 
-Containers auto-restart
-
-VM auto-start enabled in Proxmox:
+VM auto-start is enabled using:
 
 bash
 Copy code
 qm set <VMID> --onboot 1
-7. Key Maintenance Commands
-Check VM status:
+7. Current System Limitations
+HDD causes slow I/O during heavy load
+
+Limited RAM restricts number of simultaneous services
+
+Wi-Fi bridge sometimes causes intermittent MQTT packet loss
+
+8. Maintenance Tasks
+Routine maintenance includes:
+
+VM Snapshots before major changes
+
+Weekly system updates using:
+
+bash
+Copy code
+sudo apt update && sudo apt upgrade
+Monitoring resource usage via Proxmox UI
+
+9. Known Issues
+Issue	Status
+MQTT drops when WiFi unstable	Investigating
+Slow disk response	Planned SSD upgrade
+Node-RED crashes under high load	Being optimized
+
+10. Planned Upgrades
+Replace HDD with SSD
+
+Upgrade RAM to 16GB
+
+Introduce VLAN segmentation
+
+Configure WireGuard for remote access
+
+Add Prometheus monitoring
+
+This document focuses only on server operation, configuration, and maintenance.
+Project-level description is in the main repository README.
 
 bash
 Copy code
