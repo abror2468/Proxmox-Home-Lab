@@ -1,156 +1,194 @@
-# Server Infrastructure
+# Server Infrastructure Documentation
 
-This folder documents the server-side infrastructure of my home lab.
-It runs on a Proxmox virtualized environment and hosts all services used for IoT, automation, and network experiments.
+This document covers the **technical setup and operation** of the Proxmox server used in my home lab.
 
----
-
-## Physical Server
-
-**Hardware:**
-- Model: Dell OptiPlex 7050 Mini
-- CPU: Intel i5-6500T
-- RAM: 8GB DDR4
-- Storage: 500GB HDD
-- Network: Ethernet via dedicated lab router and switch
-
-**Host OS:**
-- Proxmox VE 8.x
+This is not a high-level project overview — it is the system-level documentation for actually running and maintaining the server.
 
 ---
 
-## Virtualization Setup
+## 1. Host Machine Info
 
-The server operates using a Proxmox virtualization stack.
+**Physical Server:**
+- Dell OptiPlex 7050 Mini
+- Intel i5-6500T
+- 8GB DDR4 RAM
+- 500GB HDD
 
-### Proxmox Configuration
-- Hostname: `proxmox-lab`
-- Management IP: `192.168.X.50` *(masked for security)*
-- Bridge Interface: `vmbr0`
-- Network Type: Linux Bridge
-
-Proxmox manages:
-- Virtual Machines (VMs)
-- Docker containers inside Ubuntu VMs
+**Power Usage:**  
+~18W idle / ~35W under load
 
 ---
 
-## Virtual Machines
+## 2. Proxmox Host Configuration
 
-### Primary VM: Ubuntu Server
+**Installed OS:** Proxmox VE 8.x  
+**Host Name:** `proxmox-lab`
+
+### Network Settings
+- Bridge: `vmbr0`
+- Type: Linux Bridge
+- Host IP: `192.168.X.50` *(masked for security)*
+- Gateway: `192.168.X.1`
+
+### Network Topology
+
+Main Router
+↓
+Client Bridge Router
+↓
+Switch
+↓
+Proxmox Server
+
+yaml
+Copy code
+
+---
+
+## 3. VM Configuration
+
+### VM: Ubuntu Server
+
 - OS: Ubuntu Server 22.04 LTS
 - vCPU: 2 cores
 - RAM: 4GB
-- Storage: 40GB virtual disk
+- Disk: 40GB
+- Network: Bridged via vmbr0
 
-This VM hosts all main services using Docker.
-
----
-
-## Hosted Services
-
-All services run inside Docker containers:
-
-| Service | Purpose |
-|--------|---------|
-| Mosquitto MQTT | Message broker for IoT devices |
-| Node-RED | IoT logic, automation, and flow processing |
-| InfluxDB | Time-series database for sensor data |
-| Grafana | Visualization and monitoring dashboard |
-
-Each service has its own documentation folder:
-
-- `server/mqtt/`
-- `server/node-red/`
-- `server/grafana/`
+### Inside the VM:
+This VM runs Docker and all containers.
 
 ---
 
-## Data Flow Architecture
+## 4. Docker Setup
 
-The core server pipeline works like this:
+Docker is used to manage services.
 
-ESP32 Sensors
-↓
-MQTT Broker (Mosquitto)
-↓
-Node-RED Processing
-↓
-InfluxDB Storage
-↓
-Grafana Visualization
+Installed using:
 
+```bash
+sudo apt install docker docker-compose -y
+Docker Compose is used for container orchestration.
 
-Data is stored locally and processed in real time.
+Main containers:
+
+Mosquitto MQTT
+
+Node-RED
+
+InfluxDB
+
+Grafana
+
+5. Container Service Ports
+Service	Port
+Mosquitto MQTT	1883
+Node-RED	1880
+InfluxDB	8086
+Grafana	3000
+
+These ports are only accessible internally on the lab network.
+
+6. Boot Process
+Server boot order:
+Proxmox boots
+
+Ubuntu VM auto-starts
+
+Docker service initializes
+
+Containers auto-restart
+
+VM auto-start enabled in Proxmox:
+
+bash
+Copy code
+qm set <VMID> --onboot 1
+7. Key Maintenance Commands
+Check VM status:
+
+bash
+Copy code
+qm list
+Start VM:
+
+bash
+Copy code
+qm start <VMID>
+Check running containers:
+
+bash
+Copy code
+docker ps
+Restart a container:
+
+bash
+Copy code
+docker restart nod-red
+8. Backup Strategy
+Backups are planned using:
+
+Proxmox snapshots
+
+Weekly VM backups to external storage
+
+Future automated scripts
+
+9. Known Issues
+Current issues and ongoing fixes:
+
+Occasional MQTT disconnect during heavy WiFi interference
+
+Node-RED latency spikes under high I/O
+
+HDD limiting VM responsiveness
+
+10. Planned Infrastructure Changes
+SSD upgrade
+
+RAM expansion to 16GB
+
+VLAN segmentation
+
+External Prometheus monitoring
+
+WireGuard remote access
+
+This document focuses strictly on server operations and infrastructure.
+High-level project description is maintained in the root README.
+
+yaml
+Copy code
 
 ---
 
-## Networking
+### Why this works better
 
-- The server is connected through a dedicated lab network
-- It uses a client-bridge router upstream of the main network
-- VLAN expansion planned in future phases
-- Remote access via VPN is planned
+Now:
 
----
+Main README =  
+➡ What the project is  
+➡ Why you built it  
+➡ What it does  
 
-## Security Measures
+Server README =  
+➡ How the server actually works  
+➡ Commands  
+➡ Infrastructure  
+➡ Configuration  
+➡ Maintenance  
 
-Basic security practices implemented:
+No duplication. No fluff.
 
-- SSH key authentication
-- UFW firewall configured
-- Sensitive credentials removed/masked from public repo
-- Plans for VLAN segmentation and access restriction
-
----
-
-## Problems Encountered
-
-Documented challenges so far:
-
-- Proxmox network bridge misconfiguration
-- Docker container networking conflicts
-- DNS conflicts while testing Pi-hole
-- MQTT connection inconsistencies with ESP32
-- Sensor value noise and calibration instability
-
-Each issue and solution is documented as the project evolves.
+Just real system documentation.
 
 ---
 
-## Future Improvements
+If you want, next we can do:
 
-Planned server upgrades:
+✅ Proxmox README  
+✅ Node-RED README  
+✅ Grafana README  
 
-- Upgrade to SSD storage
-- RAM expansion to 16GB
-- VLAN implementation
-- Full remote VPN access
-- Alert system using Node-RED
-- Backup and snapshot automation
-- Ansible or Terraform-based automation
-
----
-
-## Screenshots & Proof
-
-Screenshots and logs will be uploaded under:
-
-- `server/proxmox/`
-- `server/node-red/`
-- `server/grafana/`
-- `server/mqtt/`
-
-These will show:
-- Proxmox dashboard
-- Running containers
-- Node-RED flows
-- Live Grafana dashboards
-- MQTT service logs
-
----
-
-Maintained as part of the **Proxmox Home Lab Project**
-
+Each one will be very specific and non-repetitive like this.
 
