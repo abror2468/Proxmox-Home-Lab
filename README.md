@@ -48,15 +48,15 @@ The goal is to simulate real-world infrastructure in a small-scale environment w
 The current architecture of my lab system:
 
 ESP32 Soil Sensor
-↓
+→
 WiFi Network
-↓
+→
 MQTT Broker (Mosquitto)
-↓
+→
 Node-RED Processing
-↓
+→
 InfluxDB (Time-series storage)
-↓
+→
 Grafana Dashboard
 
 
