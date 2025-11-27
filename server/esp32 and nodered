@@ -1,0 +1,25 @@
+node red code:
+// msg.payload from MQTT:
+// { raw: 0, percent: 100, location: "plant_1" }
+
+const p = msg.payload;
+
+// Tell Influx which measurement to write to
+msg.measurement = "soil";
+
+// Optional tags (good for filtering in Grafana)
+msg.tags = {
+    location: p.location || "plant_1"
+};
+
+// Fields to store
+msg.payload = {
+    raw: Number(p.raw),
+    percent: Number(p.percent)
+};
+
+return msg;
+
+
+Esp32 code:
+
