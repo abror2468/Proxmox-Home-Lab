@@ -23,3 +23,111 @@ return msg;
 
 Esp32 code:
 
+
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+// ---------- CONFIGURE THESE ----------
+const char* WIFI_SSID     = "";       // TODO
+const char* WIFI_PASSWORD = "";   // TODO
+
+const char* MQTT_SERVER   = "192.168.1.229";        // TODO: your Ubuntu VM IP
+const uint16_t MQTT_PORT  = 1883;
+const char* MQTT_TOPIC    = "soil/abror";           // topic where data will be sent
+
+// Soil sensor on ESP32 GPIO 34 (ADC1_CH6)
+const int SOIL_PIN = A0;
+
+// These will need calibration later:
+int DRY_VALUE  = 3000;   // ADC reading in dry air/dry soil (adjust later)
+int WET_VALUE  = 1200;   // ADC reading in water/very wet soil (adjust later)
+
+// ------------------------------------
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+unsigned long lastPublish = 0;
+const unsigned long PUBLISH_INTERVAL_MS = 3 * 1000;  // 60 seconds
+
+void connectWiFi() {
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.print("\nWiFi connected. IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void connectMQTT() {
+  while (!client.connected()) {
+    Serial.print("Connecting to MQTT...");
+    // Client ID should be unique on broker
+    if (client.connect("ESP32_SoilSensor")) {
+      Serial.println("connected.");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" retrying in 3 seconds...");
+      delay(3000);
+    }
+  }
+}
+
+int readSoilRaw() {
+  int value = analogRead(SOIL_PIN);
+  return value;
+}
+
+// Map raw ADC to 0–100% moisture (rough; we’ll tune later)
+int rawToPercent(int raw) {
+  // Clamp
+  if (raw < WET_VALUE) raw = WET_VALUE;
+  if (raw > DRY_VALUE) raw = DRY_VALUE;
+
+  // 0% = completely dry, 100% = very wet
+  float percent = 100.0 * (float)(DRY_VALUE - raw) / (float)(DRY_VALUE - WET_VALUE);
+  if (percent < 0) percent = 0;
+  if (percent > 100) percent = 100;
+  return (int)percent;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  connectWiFi();
+
+  client.setServer(MQTT_SERVER, MQTT_PORT);
+  connectMQTT();
+}
+
+void loop() {
+  if (!client.connected()) {
+    connectMQTT();
+  }
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastPublish >= PUBLISH_INTERVAL_MS) {
+    lastPublish = now;
+
+    int raw = readSoilRaw();
+    int percent = rawToPercent(raw);
+
+    // Simple JSON payload
+    // Example: {"raw": 2345, "percent": 62, "location": "test_plant"}
+    String payload = "{";
+    payload += "\"raw\":" + String(raw) + ",";
+    payload += "\"percent\":" + String(percent) + ",";
+    payload += "\"location\":\"plant_1\"";
+    payload += "}";
+
+    Serial.print("Publishing: ");
+    Serial.println(payload);
+
+    client.publish(MQTT_TOPIC, payload.c_str());
+  }
+}
